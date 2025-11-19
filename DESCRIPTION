@@ -1,0 +1,23 @@
+Package: nwscplanningapp
+Type: Package
+Title: NOAA CO-OPS Tide Prediction Shiny App
+Version: 1.0.0
+Date: 2025-11-19
+Author: NWSC Planning Team
+Maintainer: NWSC Planning Team <team@example.com>
+Description: Shiny application for European Green Crab (EGC) field planning purposes.
+    Application provides tide prediction information from NOAA CO-OPS in a streamlined
+    visual format, along with coastal inundation information.
+License: MIT
+Depends:
+    R (>= 4.0.0)
+Imports:
+    shiny (>= 1.7.0),
+    httr (>= 1.4.0),
+    jsonlite (>= 1.8.0),
+    ggplot2 (>= 3.4.0),
+    dplyr (>= 1.1.0),
+    lubridate (>= 1.9.0),
+    DT (>= 0.27)
+Encoding: UTF-8
+RoxygenNote: 7.2.0
