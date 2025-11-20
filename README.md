@@ -76,10 +76,6 @@ This application uses the NOAA CO-OPS API:
 - Try a different station ID
 - Check that the date range is valid
 
-## License
-
-MIT License
-
 ## Acknowledgments
 
 - NOAA CO-OPS for providing the tide prediction API
