@@ -1,24 +1,17 @@
 # NOAA CO-OPS Tide Prediction Shiny App
 
-Shiny application for European Green Crab (EGC) field planning purposes. Application provides tide prediction information from NOAA CO-OPS in a streamlined visual format, along with coastal inundation information.
+Shiny application for European Green Crab (EGC) field planning purposes. Application provides tide prediction information from NOAA CO-OPS in a streamlined visual format. 
 
 ## Features
 
 ### Tab 1: Tide Predictions
-- Interactive line plot showing tide predictions for a user-specified time period (default: 7 days)
-- Annotated low tide markers showing time and water level for each low tide
-- Summary table of all low tides with date, time, and water level
+- Tide prediction plot for a user defined date range and NOAA CO-OPS station
+- Annotated low-low tide markers
+- Table of all low-low tides with date, time, and water level
 
 ### Tab 2: Threshold Crossings
-- User-definable low and high tide thresholds
-- Table showing all times when tides cross below the low threshold
-- Table showing all times when tides cross above the high threshold
-- Sortable and searchable table for easy planning
-
-### Tab 3: Coastal Inundation
-- Links to NOAA Coastal Inundation Dashboard
-- Embedded NOAA inundation map for the selected station
-- Links to additional NOAA resources (Sea Level Rise Viewer, station information)
+- User-definable tide threshold
+- Table showing all times when tides crosses water level threshold
 
 ## Installation
 
@@ -33,30 +26,12 @@ install.packages(c("shiny", "httr", "jsonlite", "ggplot2", "dplyr", "lubridate",
 
 ## Usage
 
-### Running the Application
-
-1. Clone this repository:
-```bash
-git clone https://github.com/danny-duncan/nwsc-planning-app.git
-cd nwsc-planning-app
-```
-
-2. Open R or RStudio and run:
-```r
-shiny::runApp()
-```
-
-Or from the command line:
-```bash
-Rscript -e "shiny::runApp('app.R')"
-```
-
 ### Using the Application
 
-1. **Select a Station**: Enter a NOAA station ID (e.g., 9414290 for San Francisco)
+1. **Select a Station**: Enter a NOAA station ID (e.g., 9449679 for Drayton Harbor, WA)
    - Find station IDs at: https://tidesandcurrents.noaa.gov/
    
-2. **Set Date Range**: Choose a start date and number of days (1-31)
+2. **Set Date Range**: Choose a start date and end date
 
 3. **Select Datum**: Choose the vertical datum reference (default: MLLW - Mean Lower Low Water)
 
@@ -64,18 +39,7 @@ Rscript -e "shiny::runApp('app.R')"
 
 5. **View Results**:
    - **Tide Predictions Tab**: View the tide prediction graph with low tide annotations
-   - **Threshold Crossings Tab**: Set custom thresholds and view crossing times
-   - **Coastal Inundation Tab**: Access NOAA inundation forecasts and maps
-
-## Example Station IDs
-
-- **9414290**: San Francisco, CA
-- **8454000**: Providence, RI
-- **8518750**: The Battery, New York, NY
-- **9447130**: Seattle, WA
-- **8729108**: Panama City, FL
-
-For a complete list of stations, visit: https://tidesandcurrents.noaa.gov/map/
+   - **Threshold Crossings Tab**: Set custom thresholds and view trapping window times
 
 ## API Reference
 
@@ -98,13 +62,6 @@ This application uses the NOAA CO-OPS API:
 ### Tide Types
 - **H**: High tide
 - **L**: Low tide
-
-## Field Planning Tips
-
-1. **Low Tide Access**: Use the low tide annotations to plan field work during optimal water levels
-2. **Threshold Planning**: Set thresholds based on your access requirements and view when conditions are suitable
-3. **Multi-Day Planning**: View up to 31 days of predictions to plan multiple field trips
-4. **Inundation Awareness**: Check coastal inundation forecasts before field work for safety
 
 ## Troubleshooting
 
