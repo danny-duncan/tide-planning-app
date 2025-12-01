@@ -9,6 +9,7 @@ library(dplyr)
 library(lubridate)
 library(DT)
 library(gridExtra)
+library(plotly)
 
 # Function to query NOAA CO-OPS API for tide predictions
 get_tide_predictions <- function(station_id, start_date, end_date, datum = "MLLW") {
@@ -37,7 +38,7 @@ get_tide_predictions <- function(station_id, start_date, end_date, datum = "MLLW
     content <- content(response, as = "text", encoding = "UTF-8")
     data <- fromJSON(content)
     
-    if (!is.null(data$predictions)) {
+    if (! is.null(data$predictions)) {
       df <- as.data.frame(data$predictions)
       df$t <- as.POSIXct(df$t, format = "%Y-%m-%d %H:%M", tz = "")
       df$v <- as.numeric(df$v)
@@ -144,12 +145,12 @@ ui <- fluidPage(
       helpText("Common stations:"),
       tags$ul(
         tags$li("Drayton Harbor, WA: 9449679"),
-        tags$li("Bellingham, WA: 9449211"),
+        tags$li("Bellingham, WA: 9449211")
       ),
       helpText("Trapping Tide Thresholds:"),
       tags$ul(
         tags$li("Drayton Harbor, WA: 3 ft"),
-        tags$li("Bellingham, WA: 5 ft"),
+        tags$li("Bellingham, WA: 5 ft")
       ),
       width = 3
     ),
@@ -165,7 +166,7 @@ ui <- fluidPage(
                  tableOutput("low_tide_table")
         ),
         tabPanel("Trapping Window", value = "threshold",
-                 plotOutput("threshold_plot", height = "600px"),
+                 plotlyOutput("threshold_plot", height = "600px"),
                  hr(),
                  h4("Times when tide crosses below and above thresholds"),
                  DTOutput("threshold_table")
@@ -224,7 +225,7 @@ server <- function(input, output, session) {
       group_by(ymd) %>% 
       slice_min(v) %>% 
       select(t, dtg, v)
-      
+    
     # Create the plot
     p <- ggplot(detailed, aes(x = t, y = v)) +
       geom_line(color = 'darkblue', size = 1) +
@@ -245,7 +246,7 @@ server <- function(input, output, session) {
       p <- p + 
         geom_point(data = low_tides, aes(x = t, y = v), color = '#ff5555', size = 3) +
         geom_text(data = low_tides, aes(x = t, y = v, 
-                      label = paste(dtg, "\n", round(v, 2), "ft")),
+                                        label = paste(dtg, "\n", round(v, 2), "ft")),
                   vjust = 0, hjust = -0.3, size = 6, color = '#ff5555')
     }
     
@@ -271,33 +272,75 @@ server <- function(input, output, session) {
     low_tides
   }, striped = TRUE, hover = TRUE)
   
-  # Tab 2: Trapping window plot
-  output$threshold_plot <- renderPlot({
+  # Tab 2: Trapping window plot (now with plotly)
+  output$threshold_plot <- renderPlotly({
     req(detailed_data(), input$threshold)
     
     detailed <- detailed_data()
     
     detailed <- detailed %>% 
-      mutate(window <- if_else(v <= input$threshold, "yes","no"))
+      mutate(window = if_else(v <= input$threshold, "yes", "no"),
+             color = if_else(window == "yes", '#8be9fd', '#ff5555'))
     
-    p1 <- ggplot(detailed, aes(x = t, y = v)) +
-      geom_line(color = if_else(detailed$window == "yes",'#8be9fd','#ff5555'), size = 1) +
-      geom_hline(yintercept = input$threshold,
-                 linetype = "dashed",
-                 color = "black") +
-      scale_x_datetime(date_breaks = "1 day", date_labels = "%b %d") +
-      labs(caption = paste('Tidal Window Predictions for Station', input$station_id, 'between',
-                           format(input$date_range[1], "%Y-%m-%d"), 'and',
-                           format(input$date_range[2], "%Y-%m-%d"), '(Source: NOAA CO-OPS)'),
-           title = paste('NOAA Station ID:', input$station_id),
-           x = 'Date',
-           y = 'Tide Level (ft)') +
-      theme_minimal() +
-      theme(plot.caption = element_text(size = 16, hjust = 0.5),
-            plot.title = element_text(size = 18),
-            legend.position = 'none')
-
-    print(p1)
+    # Create the plotly object
+    p1 <- plot_ly(
+      data = detailed,
+      x = ~t, 
+      y = ~v,
+      type = 'scatter',
+      mode = 'lines',
+      line = list(color = ~color, width = 2),
+      showlegend = FALSE,
+      hovertemplate = paste(
+        '<b>Date:</b> %{x|%Y-%m-%d %H:%M}<br>',
+        '<b>Tide Level:</b> %{y:. 2f} ft<br>',
+        '<extra></extra>'
+      )
+    ) %>%
+      # Add horizontal threshold line
+      add_trace(
+        x = range(detailed$t),
+        y = c(input$threshold, input$threshold),
+        type = 'scatter',
+        mode = 'lines',
+        line = list(color = 'black', width = 2, dash = 'dash'),
+        name = 'Threshold',
+        showlegend = FALSE,
+        hovertemplate = paste('<b>Threshold:</b>', input$threshold, 'ft<extra></extra>')
+      ) %>%
+      layout(
+        title = list(
+          text = paste('NOAA Station ID:', input$station_id),
+          font = list(size = 18)
+        ),
+        xaxis = list(
+          title = 'Date',
+          tickformat = '%b %d',
+          dtick = 86400000  # 1 day in milliseconds
+        ),
+        yaxis = list(
+          title = 'Tide Level (ft)'
+        ),
+        annotations = list(
+          list(
+            text = paste('Tidal Window Predictions for Station', input$station_id, 'between',
+                         format(input$date_range[1], "%Y-%m-%d"), 'and',
+                         format(input$date_range[2], "%Y-%m-%d"), '(Source: NOAA CO-OPS)'),
+            xref = 'paper',
+            yref = 'paper',
+            x = 0.5,
+            y = -0.15,
+            xanchor = 'center',
+            yanchor = 'top',
+            showarrow = FALSE,
+            font = list(size = 16)
+          )
+        ),
+        hovermode = 'closest',
+        showlegend = FALSE
+      )
+    
+    p1
   })
   
   # Tab 2: Trapping window table
@@ -309,7 +352,7 @@ server <- function(input, output, session) {
     # Find and combine threshold crossings
     all_crossings <- do.call(rbind, lapply(c("below", "above"), function(direction) {
       crossings <- find_threshold_crossings(detailed, input$threshold, direction)
-      if (!is.null(crossings)) {
+      if (! is.null(crossings)) {
         crossings$Threshold <- paste(direction, input$threshold, "ft")
         return(crossings)
       }
@@ -332,7 +375,7 @@ server <- function(input, output, session) {
     
     datatable(all_crossings, options = list(pageLength = 25, scrollX = TRUE))
   })
-
+  
 }
 
 # Run the application
