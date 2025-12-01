@@ -1,8 +1,16 @@
 # NOAA CO-OPS Tide Prediction Shiny App
 
+## Overview
+
 Shiny application for European Green Crab (EGC) field planning purposes. Application provides tide prediction information from NOAA CO-OPS in a streamlined visual format. 
 
 ## Features
+
+### Sidebar: User Defined Parameters
+- NOAA CO-OPS Station ID input (Default: Drayton Harbor, WA)
+- Date range for data retrieval (Default: Monday-Friday of week + 1)
+- Vertical Datum Reference selector (Default: MLLW)
+- Water level threshold input (Default: 3 ft)
 
 ### Tab 1: Tide Predictions
 - Tide prediction plot for a user defined date range and NOAA CO-OPS station
@@ -11,18 +19,8 @@ Shiny application for European Green Crab (EGC) field planning purposes. Applica
 
 ### Tab 2: Threshold Crossings
 - User-definable tide threshold
+- Interactive plot for threshold time analysis
 - Table showing all times when tides crosses water level threshold
-
-## Installation
-
-### Prerequisites
-- R (>= 4.0.0)
-- Required R packages (will be installed automatically when running the app)
-
-### Required R Packages
-```r
-install.packages(c("shiny", "httr", "jsonlite", "ggplot2", "dplyr", "lubridate", "DT"))
-```
 
 ## Usage
 
@@ -38,7 +36,7 @@ install.packages(c("shiny", "httr", "jsonlite", "ggplot2", "dplyr", "lubridate",
 4. **Fetch Data**: Click "Fetch Tide Data" to retrieve predictions from NOAA
 
 5. **View Results**:
-   - **Tide Predictions Tab**: View the tide prediction graph with low tide annotations
+   - **Tide Predictions Tab**: View the tide prediction graph with low-low tide annotations
    - **Threshold Crossings Tab**: Set custom thresholds and view trapping window times
 
 ## API Reference
@@ -59,10 +57,6 @@ This application uses the NOAA CO-OPS API:
 - **MHW** (Mean High Water): Average of all high water heights
 - **MHHW** (Mean Higher High Water): Average of higher high water heights
 
-### Tide Types
-- **H**: High tide
-- **L**: Low tide
-
 ## Troubleshooting
 
 ### "Failed to fetch tide data"
@@ -79,4 +73,3 @@ This application uses the NOAA CO-OPS API:
 ## Acknowledgments
 
 - NOAA CO-OPS for providing the tide prediction API
-- European Green Crab field planning team
