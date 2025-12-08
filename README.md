@@ -12,15 +12,14 @@ Shiny application for European Green Crab (EGC) field planning purposes. Applica
 - Vertical Datum Reference selector (Default: MLLW)
 - Water level threshold input (Default: 3 ft)
 
-### Tab 1: Tide Predictions
-- Tide prediction plot for a user defined date range and NOAA CO-OPS station
+### Tab 1: Tide Prediction Plot
+- Interactive plot for threshold tide analysis
 - Annotated low-low tide markers
-- Table of all low-low tides with date, time, and water level
+- Annotated threshold-crossing markers
 
-### Tab 2: Threshold Crossings
-- User-definable tide threshold
-- Interactive plot for threshold time analysis
+### Tab 2: Tide Prediction Tables
 - Table showing all times when tides crosses water level threshold
+- Table of all low-low tides with date, time, and water level
 
 ## Usage
 
