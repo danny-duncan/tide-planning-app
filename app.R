@@ -147,12 +147,12 @@ ui <- fluidPage(
       helpText("Common stations:"),
       tags$ul(
         tags$li("Drayton Harbor, WA: 9449679"),
-        tags$li("Bellingham, WA: 9449211")
+        tags$li("Cherry Point, WA: 9449424")
       ),
       helpText("Trapping Tide Thresholds:"),
       tags$ul(
         tags$li("Drayton Harbor, WA: 3 ft"),
-        tags$li("Bellingham, WA: 5 ft")
+        tags$li("Cherry Point, WA: 5 ft")
       ),
       width = 3
     ),
