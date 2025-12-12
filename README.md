@@ -1,8 +1,8 @@
-# NOAA CO-OPS Tide Prediction Shiny App
+# NOAA CO-OPS Tide Planning Shiny App
 
 ## Overview
 
-Shiny application for European Green Crab (EGC) field planning purposes. Application provides tide prediction information from NOAA CO-OPS in a streamlined visual format. 
+Shiny application for coastal field planning purposes. Application provides tide prediction information from NOAA CO-OPS in a streamlined visual format. 
 
 ## Features
 
