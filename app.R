@@ -217,7 +217,7 @@ server <- function(input, output, session) {
         annotations[[length(annotations) + 1]] <- list(
           x = daily_lows$t[i], 
           y = daily_lows$v[i],
-          text = paste0("Low Tide<br>", sprintf("%. 2f ft", daily_lows$v[i]), "<br>", format(daily_lows$t[i], "%H:%M")),
+          text = paste0("Low Tide<br>", sprintf("%.2f ft", daily_lows$v[i]), "<br>", format(daily_lows$t[i], "%H:%M")),
           showarrow = TRUE, 
           arrowhead = 2, 
           arrowsize = 1,
