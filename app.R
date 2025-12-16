@@ -34,7 +34,7 @@ get_tide_data <- function(station_id, start_date, end_date, interval, datum = "M
     mutate(t = as.POSIXct(t, format = "%Y-%m-%d %H:%M", tz = ""), v = as.numeric(v))
 }
 
-# Find where tide crosses threshold
+# Find nearest data points to threshold when crossing occurs
 find_crossings <- function(tide_data, threshold) {
   if (is.null(tide_data) || nrow(tide_data) < 2) return(NULL)
   
@@ -42,45 +42,43 @@ find_crossings <- function(tide_data, threshold) {
     prev <- tide_data$v[i-1]
     curr <- tide_data$v[i]
     
-    # Check if crossing occurs (sign change)
-    if ((prev - threshold) * (curr - threshold) < 0) {
-      # Linear interpolation to find exact crossing time
-      frac <- (threshold - prev) / (curr - prev)
-      t_cross <- tide_data$t[i-1] + frac * as.numeric(difftime(tide_data$t[i], tide_data$t[i-1], units = "secs"))
+    # Check if crossing occurs
+    if ((prev - threshold) * (curr - threshold) <= 0 && prev != curr) {
+      # Find which point is nearest to threshold
+      nearest_idx <- if (abs(prev - threshold) < abs(curr - threshold)) i - 1 else i
       
       data.frame(
-        t = as.POSIXct(t_cross, origin = "1970-01-01", tz = attr(tide_data$t, "tzone")),
-        v = threshold,
+        t = tide_data$t[nearest_idx],
+        v = tide_data$v[nearest_idx],
         direction = if_else(curr > prev, "Rising", "Falling"),
-        idx = i
+        idx = nearest_idx
       )
     }
   }))
 }
 
 # Split tide data into colored segments at threshold crossings
-split_segments <- function(tide_data, crossings) {
-  if (is.null(crossings) || nrow(crossings) == 0) return(list(tide_data))
+split_segments <- function(tide_data, crossings, threshold) {
+  if (is.null(crossings) || nrow(crossings) == 0) {
+    return(list(list(data = tide_data, below = mean(tide_data$v) <= threshold)))
+  }
   
-  # Create all segments including crossings as boundaries
-  all_segs <- lapply(seq_len(nrow(crossings) + 1), function(i) {
-    start_idx <- if (i == 1) 1 else crossings$idx[i-1]
-    end_idx <- if (i <= nrow(crossings)) crossings$idx[i] - 1 else nrow(tide_data)
+  crossing_indices <- sort(unique(crossings$idx))
+  n_crossings <- length(crossing_indices)
+  
+  lapply(seq_len(n_crossings + 1), function(i) {
+    # Determine segment boundaries
+    start_idx <- if (i == 1) 1 else crossing_indices[i - 1]
+    end_idx <- if (i <= n_crossings) crossing_indices[i] else nrow(tide_data)
     
-    seg <- tide_data[start_idx: end_idx, ]
+    # Determine color by checking a point away from the crossing boundary
+    check_idx <- if (i == 1) max(1, end_idx - 1) else min(nrow(tide_data), start_idx + 1)
     
-    # Add crossing point at segment boundary
-    if (i <= nrow(crossings)) {
-      seg <- rbind(seg, data.frame(t = crossings$t[i], v = crossings$v[i], window = seg$window[nrow(seg)]))
-    }
-    if (i > 1) {
-      seg <- rbind(data.frame(t = crossings$t[i-1], v = crossings$v[i-1], window = seg$window[1]), seg)
-    }
-    
-    seg
+    list(
+      data = tide_data[start_idx:end_idx, ],
+      below = tide_data$v[check_idx] <= threshold
+    )
   })
-  
-  all_segs
 }
 
 #### UI ####
@@ -92,14 +90,15 @@ ui <- fluidPage(
     sidebarPanel(
       numericInput("station_id", "Station ID:", value = 9449679, min = 0, max = 9999999),
       dateRangeInput("date_range", "Date Range:",
-                     start = Sys.Date() + 1, end = Sys.Date() + 5,
+                     start = (Sys.Date() - wday(Sys.Date() - 1)) + 8,
+                     end = (Sys.Date() - wday(Sys.Date() - 1)) + 12,
                      min = Sys.Date(), max = Sys.Date() + 365),
       selectInput("datum", "Datum:", choices = c("MLLW", "MLW", "MTL", "MSL", "MHW", "MHHW"), selected = "MLLW"),
       numericInput("threshold", "Threshold (ft):", value = 3.0, min = 0.1, max = 10, step = 0.1),
       actionButton("fetch_data", "Fetch Data", class = "btn-primary"),
       hr(),
-      helpText("Common Stations:"),
-      tags$ul(tags$li("Drayton Harbor, WA: 9449679"), tags$li("Cherry Point, WA: 9449424")),
+      helpText("Common Stations: "),
+      tags$ul(tags$li("Drayton Harbor, WA:  9449679"), tags$li("Cherry Point, WA: 9449424")),
       width = 3
     ),
     
@@ -125,7 +124,7 @@ server <- function(input, output, session) {
   observeEvent(input$fetch_data, {
     req(input$station_id, input$date_range)
     
-    withProgress(message = 'Fetching... ', {
+    withProgress(message = 'Fetching...  ', {
       tide_hilo(get_tide_data(input$station_id, input$date_range[1], input$date_range[2], 'hilo', input$datum))
       tide_detailed(get_tide_data(input$station_id, input$date_range[1], input$date_range[2], '6', input$datum))
     })
@@ -135,23 +134,32 @@ server <- function(input, output, session) {
   
   # Plot
   output$tide_plot <- renderPlotly({
-    req(tide_detailed(), input$threshold)
+    req(tide_detailed(), tide_hilo(), input$threshold)
     
     # Prepare data
-    data <- tide_detailed() %>% mutate(window = v <= input$threshold)
+    data <- tide_detailed()
     crossings <- find_crossings(data, input$threshold)
-    daily_lows <- data %>% mutate(date = as.Date(t)) %>% group_by(date) %>% slice_min(v, n = 1) %>% ungroup()
-    segments <- split_segments(data, crossings)
+    daily_lows <- tide_hilo() %>%
+      filter(type == "L") %>%
+      mutate(date = format(t, "%Y-%m-%d")) %>%
+      group_by(date) %>%
+      arrange(v) %>%
+      slice(1) %>%
+      ungroup() %>%
+      distinct(date, .keep_all = TRUE)  
+    
+    segments <- split_segments(data, crossings, input$threshold)
     
     # Build plot
     p <- plot_ly()
     
     # Add colored tide segments
     for (seg in segments) {
-      if (nrow(seg) > 0) {
+      if (nrow(seg$data) > 0) {
+        color <- if (seg$below) '#8be9fd' else '#ff5555'
         p <- p %>% add_trace(
-          data = seg, x = ~t, y = ~v, type = 'scatter', mode = 'lines',
-          line = list(color = if_else(seg$window[1], '#8be9fd', '#ff5555'), width = 2),
+          data = seg$data, x = ~t, y = ~v, type = 'scatter', mode = 'lines',
+          line = list(color = color, width = 2),
           showlegend = FALSE,
           hovertemplate = '<b>%{x|%Y-%m-%d %H:%M}</b><br>%{y:.2f} ft<extra></extra>'
         )
@@ -166,24 +174,22 @@ server <- function(input, output, session) {
     )
     
     # Add crossing markers
-    if (! is.null(crossings) && nrow(crossings) > 0) {
+    if (!is.null(crossings) && nrow(crossings) > 0) {
       p <- p %>% add_trace(
         data = crossings, x = ~t, y = ~v, type = 'scatter', mode = 'markers',
         marker = list(size = 10, color = '#ffb86c', line = list(color = '#282a36', width = 2)),
         text = ~direction, showlegend = FALSE,
-        hovertemplate = '<b>Crossing:  %{text}</b><br>%{x|%m/%d %H:%M}<extra></extra>'
+        hovertemplate = '<b>Crossing:   %{text}</b><br>%{x|%m/%d %H:%M}<br>%{y:.2f} ft<extra></extra>'
       )
     }
     
     # Add low tide markers
-    if (nrow(daily_lows) > 0) {
-      p <- p %>% add_trace(
-        data = daily_lows, x = ~t, y = ~v, type = 'scatter', mode = 'markers',
-        marker = list(size = 10, color = '#50fa7b', line = list(color = '#282a36', width = 2)),
-        showlegend = FALSE,
-        hovertemplate = '<b>Low Tide</b><br>%{y:.2f} ft @ %{x|%H:%M}<extra></extra>'
-      )
-    }
+    p <- p %>% add_trace(
+      data = daily_lows, x = ~t, y = ~v, type = 'scatter', mode = 'markers',
+      marker = list(size = 10, color = '#50fa7b', line = list(color = '#282a36', width = 2)),
+      showlegend = FALSE,
+      hovertemplate = '<b>Low Tide</b><br>%{y:. 2f} ft @ %{x|%H:%M}<extra></extra>'
+    )
     
     # Build annotations list
     annotations <- list()
@@ -194,7 +200,7 @@ server <- function(input, output, session) {
         annotations[[length(annotations) + 1]] <- list(
           x = crossings$t[i], 
           y = crossings$v[i],
-          text = paste0(crossings$direction[i], "<br>", format(crossings$t[i], "%m/%d %H:%M")),
+          text = paste0(crossings$direction[i], "<br>", sprintf("%.2f ft", crossings$v[i]), "<br>", format(crossings$t[i], "%m/%d %H:%M")),
           showarrow = TRUE, 
           arrowhead = 2, 
           arrowsize = 1,
@@ -212,26 +218,24 @@ server <- function(input, output, session) {
     }
     
     # Add low tide annotations
-    if (nrow(daily_lows) > 0) {
-      for (i in 1:nrow(daily_lows)) {
-        annotations[[length(annotations) + 1]] <- list(
-          x = daily_lows$t[i], 
-          y = daily_lows$v[i],
-          text = paste0("Low Tide<br>", sprintf("%.2f ft", daily_lows$v[i]), "<br>", format(daily_lows$t[i], "%H:%M")),
-          showarrow = TRUE, 
-          arrowhead = 2, 
-          arrowsize = 1,
-          arrowwidth = 2,
-          arrowcolor = '#50fa7b',
-          ax = 0, 
-          ay = 40,
-          bgcolor = 'white', 
-          bordercolor = '#50fa7b', 
-          borderwidth = 2,
-          borderpad = 4,
-          font = list(size = 10, color = '#282a36')
-        )
-      }
+    for (i in 1:nrow(daily_lows)) {
+      annotations[[length(annotations) + 1]] <- list(
+        x = daily_lows$t[i],
+        y = daily_lows$v[i],
+        text = paste0("Low Tide<br>", sprintf("%.2f ft", daily_lows$v[i]), "<br>", format(daily_lows$t[i], "%H:%M")),
+        showarrow = TRUE, 
+        arrowhead = 2, 
+        arrowsize = 1,
+        arrowwidth = 2,
+        arrowcolor = '#50fa7b',
+        ax = 0, 
+        ay = 40,
+        bgcolor = 'white', 
+        bordercolor = '#50fa7b', 
+        borderwidth = 2,
+        borderpad = 4,
+        font = list(size = 10, color = '#282a36')
+      )
     }
     
     # Layout
@@ -268,7 +272,7 @@ server <- function(input, output, session) {
       filter(type == "L") %>%
       mutate(Date = format(t, "%Y-%m-%d"), Time = format(t, "%H:%M"), Level = round(v, 2)) %>%
       group_by(Date) %>%
-      slice_min(Level) %>%
+      slice_min(Level, n = 1, with_ties = FALSE) %>%
       select(Date, Time, Level) %>%
       datatable(options = list(dom = 't'), rownames = FALSE)
   })
