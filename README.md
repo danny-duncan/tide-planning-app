@@ -72,3 +72,5 @@ This application uses the NOAA CO-OPS API:
 ## Acknowledgments
 
 - NOAA CO-OPS for providing the tide prediction API
+
+## Known Issues
