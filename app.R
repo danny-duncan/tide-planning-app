@@ -95,6 +95,7 @@ ui <- fluidPage(
                      min = Sys.Date(), max = Sys.Date() + 365),
       selectInput("datum", "Datum:", choices = c("MLLW", "MLW", "MTL", "MSL", "MHW", "MHHW"), selected = "MLLW"),
       numericInput("threshold", "Threshold (ft):", value = 3.0, min = 0.1, max = 10, step = 0.1),
+      checkboxInput("show_labels", "Show labels", value = TRUE),
       actionButton("fetch_data", "Fetch Data", class = "btn-primary"),
       hr(),
       helpText("Common Stations: "),
@@ -191,51 +192,55 @@ server <- function(input, output, session) {
       hovertemplate = '<b>Low Tide</b><br>%{y:. 2f} ft @ %{x|%H:%M}<extra></extra>'
     )
     
-    # Build annotations list
-    annotations <- list()
-    
-    # Add crossing annotations
-    if (!is.null(crossings) && nrow(crossings) > 0) {
-      for (i in 1:nrow(crossings)) {
+    annotations <- NULL
+
+    if (isTRUE(input$show_labels)) {
+      # Build annotations list
+      annotations <- list()
+      
+      # Add crossing annotations
+      if (!is.null(crossings) && nrow(crossings) > 0) {
+        for (i in 1:nrow(crossings)) {
+          annotations[[length(annotations) + 1]] <- list(
+            x = crossings$t[i], 
+            y = crossings$v[i],
+            text = paste0(crossings$direction[i], "<br>", sprintf("%.2f ft", crossings$v[i]), "<br>", format(crossings$t[i], "%m/%d %H:%M")),
+            showarrow = TRUE, 
+            arrowhead = 2, 
+            arrowsize = 1,
+            arrowwidth = 2,
+            arrowcolor = '#ffb86c',
+            ax = if_else(crossings$direction[i] == "Rising", 40, -40), 
+            ay = -40,
+            bgcolor = 'white', 
+            bordercolor = '#ffb86c', 
+            borderwidth = 2,
+            borderpad = 4,
+            font = list(size = 10, color = '#282a36')
+          )
+        }
+      }
+      
+      # Add low tide annotations
+      for (i in 1:nrow(daily_lows)) {
         annotations[[length(annotations) + 1]] <- list(
-          x = crossings$t[i], 
-          y = crossings$v[i],
-          text = paste0(crossings$direction[i], "<br>", sprintf("%.2f ft", crossings$v[i]), "<br>", format(crossings$t[i], "%m/%d %H:%M")),
+          x = daily_lows$t[i],
+          y = daily_lows$v[i],
+          text = paste0("Low Tide<br>", sprintf("%.2f ft", daily_lows$v[i]), "<br>", format(daily_lows$t[i], "%H:%M")),
           showarrow = TRUE, 
           arrowhead = 2, 
           arrowsize = 1,
           arrowwidth = 2,
-          arrowcolor = '#ffb86c',
-          ax = if_else(crossings$direction[i] == "Rising", 40, -40), 
-          ay = -40,
+          arrowcolor = '#50fa7b',
+          ax = 0, 
+          ay = 40,
           bgcolor = 'white', 
-          bordercolor = '#ffb86c', 
+          bordercolor = '#50fa7b', 
           borderwidth = 2,
           borderpad = 4,
           font = list(size = 10, color = '#282a36')
         )
       }
-    }
-    
-    # Add low tide annotations
-    for (i in 1:nrow(daily_lows)) {
-      annotations[[length(annotations) + 1]] <- list(
-        x = daily_lows$t[i],
-        y = daily_lows$v[i],
-        text = paste0("Low Tide<br>", sprintf("%.2f ft", daily_lows$v[i]), "<br>", format(daily_lows$t[i], "%H:%M")),
-        showarrow = TRUE, 
-        arrowhead = 2, 
-        arrowsize = 1,
-        arrowwidth = 2,
-        arrowcolor = '#50fa7b',
-        ax = 0, 
-        ay = 40,
-        bgcolor = 'white', 
-        bordercolor = '#50fa7b', 
-        borderwidth = 2,
-        borderpad = 4,
-        font = list(size = 10, color = '#282a36')
-      )
     }
     
     # Layout
@@ -258,7 +263,7 @@ server <- function(input, output, session) {
       return(data.frame(Message = "No crossings found"))
     }
     
-    crossings %>%
+    crossings %%
       mutate(Date = format(t, "%Y-%m-%d"), Time = format(t, "%H:%M"), Level = round(v, 2)) %>%
       select(Date, Time, Level, Direction = direction) %>%
       datatable(options = list(dom = 't'), rownames = FALSE)
