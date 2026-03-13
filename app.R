@@ -263,7 +263,7 @@ server <- function(input, output, session) {
       return(data.frame(Message = "No crossings found"))
     }
     
-    crossings %%
+    crossings %>% 
       mutate(Date = format(t, "%Y-%m-%d"), Time = format(t, "%H:%M"), Level = round(v, 2)) %>%
       select(Date, Time, Level, Direction = direction) %>%
       datatable(options = list(dom = 't'), rownames = FALSE)
