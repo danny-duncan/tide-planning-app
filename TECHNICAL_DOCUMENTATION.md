@@ -255,73 +255,7 @@ connection (for API calls)
 
     The app will open in your default browser at `http://localhost:3838`
 
-### Option 2: Shiny Server (Linux/Unix Deployment)
-
-**Requirements:** - Linux server (Ubuntu/CentOS recommended) - R ≥
-4.0.0 - Shiny Server (open source) - Internet connection
-
-**Installation Steps:**
-
-1.  **Install R:**
-
-    ``` bash
-    # Ubuntu/Debian
-    sudo apt-get update
-    sudo apt-get install r-base r-base-dev
-
-    # CentOS/RHEL
-    sudo yum install R
-    ```
-
-2.  **Install Shiny Server:**
-
-    ``` bash
-    sudo apt-get install gdebi-core
-    wget https://download3.rstudio.org/ubuntu-14.04/x86_64/shiny-server-1.5.20.1002-amd64.deb
-    sudo gdebi shiny-server-1.5.20.1002-amd64.deb
-    ```
-
-3.  **Install R Dependencies:**
-
-    ``` bash
-    sudo -i R -e "install.packages(c('shiny', 'httr', 'jsonlite', 'ggplot2', 'dplyr', 'lubridate', 'DT', 'plotly', 'bslib'))"
-    ```
-
-4.  **Deploy Application:**
-
-    ``` bash
-    sudo cp -r tide-planning-app /srv/shiny-server/tide-app
-    sudo chown -R shiny:shiny /srv/shiny-server/tide-app
-    ```
-
-5.  **Configure Shiny Server** (`/etc/shiny-server/shiny-server.conf`):
-
-    ```         
-    # Run as user shiny
-    run_as shiny;
-
-    # Allocate more memory
-    app_memory_limit 1024m;
-
-    server {
-      listen 3838;
-
-      location /tide-app {
-        app_dir /srv/shiny-server/tide-app;
-        app_init_args "--port=3838";
-      }
-    }
-    ```
-
-6.  **Restart Shiny Server:**
-
-    ``` bash
-    sudo systemctl restart shiny-server
-    ```
-
-    Access at: `http://your-server:3838/tide-app`
-
-### Option 3: Shinyapps.io (Cloud Hosting - Easiest)
+### Option 2: Shinyapps.io (Cloud Hosting - Easiest)
 
 **Requirements:** - RStudio account (free: <https://rstudio.cloud>) -
 Shinyapps.io account (free tier available)
@@ -352,38 +286,6 @@ Shinyapps.io account (free tier available)
 
 **Limitations (Free Tier):** - 25 active hours per month - 5 concurrent
 users - 1 GB data per month - No custom domain
-
-### Option 4: Docker Container
-
-**Dockerfile Example:**
-
-``` dockerfile
-FROM rocker/shiny-verse:4.3.0
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy app
-COPY . /srv/shiny-server/tide-app
-
-# Install R packages
-RUN R -e "install.packages(c('shiny', 'httr', 'jsonlite', 'dplyr', 'lubridate', 'DT', 'plotly', 'bslib'))"
-
-# Expose port
-EXPOSE 3838
-
-# Run
-CMD ["/usr/bin/shiny-server"]
-```
-
-**Build and Run:**
-
-``` bash
-docker build -t tide-planning-app .
-docker run -p 3838:3838 tide-planning-app
-```
 
 ------------------------------------------------------------------------
 
